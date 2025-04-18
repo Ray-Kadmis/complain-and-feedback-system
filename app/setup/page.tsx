@@ -1,17 +1,24 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { initializeApp } from "firebase/app"
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth"
-import { getFirestore, doc, setDoc } from "firebase/firestore"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { initializeApp } from "firebase/app";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
+import { getFirestore, doc, setDoc } from "firebase/firestore";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -21,68 +28,73 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-}
+};
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig)
-const auth = getAuth(app)
-const db = getFirestore(app)
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
 export default function SetupPage() {
-  const router = useRouter()
-  const [username, setUsername] = useState("admin")
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
+  const [username, setUsername] = useState("admin");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSetup = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (password !== confirmPassword) {
       toast.error("Passwords don't match", {
         description: "Please make sure both passwords match.",
-      })
-      return
+      });
+      return;
     }
 
     if (password.length < 6) {
       toast.error("Password too short", {
         description: "Password must be at least 6 characters long.",
-      })
-      return
+      });
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
     try {
       // Create admin user in Firebase Auth
-      const email = `${username}@university.edu`
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      const email = `${username}@university.edu`;
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
 
       // Add admin user to Firestore
       await setDoc(doc(db, "users", userCredential.user.uid), {
         username,
         role: "admin",
         createdAt: new Date().toISOString(),
-      })
+      });
 
       toast.success("Admin account created", {
         description: "You can now log in as an administrator.",
-      })
+      });
 
       // Redirect to login page
-      router.push("/login/admin")
+      router.push("/login/admin");
     } catch (error: any) {
       toast.error("Setup failed", {
-        description: error.message || "There was a problem creating the admin account.",
-      })
+        description:
+          error.message || "There was a problem creating the admin account.",
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+    <div className="flex min-h-screen items-center justify-center">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Initial Setup</CardTitle>
@@ -99,7 +111,9 @@ export default function SetupPage() {
                 placeholder="admin"
                 required
               />
-              <p className="text-xs text-muted-foreground">Your email will be {username}@university.edu</p>
+              <p className="text-xs text-muted-foreground">
+                Your email will be {username}@university.edu
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -112,7 +126,9 @@ export default function SetupPage() {
                 placeholder="Enter password"
                 required
               />
-              <p className="text-xs text-muted-foreground">Password must be at least 6 characters</p>
+              <p className="text-xs text-muted-foreground">
+                Password must be at least 6 characters
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -135,5 +151,5 @@ export default function SetupPage() {
         </form>
       </Card>
     </div>
-  )
+  );
 }
