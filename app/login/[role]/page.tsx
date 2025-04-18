@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-
+import Waves from "@/components/BgWaves";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -126,8 +126,23 @@ export default function LoginPage({ params }: { params: { role: string } }) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <Card className="w-full max-w-md">
+    <div className="flex min-h-screen items-center  justify-center">
+      <div className="absolute inset-0 w-full h-full z-0">
+        <Waves
+          lineColor="#005B94"
+          backgroundColor="rgba(255, 255, 255, 0)"
+          waveSpeedX={0.1}
+          waveSpeedY={0.1}
+          waveAmpX={60}
+          waveAmpY={50}
+          friction={0.9}
+          tension={0.01}
+          maxCursorMove={120}
+          xGap={12}
+          yGap={12}
+        />
+      </div>
+      <Card className="w-full mx-4 bg-transparent backdrop-blur-lg max-w-md">
         <CardHeader>
           <CardTitle>{roleTitle} Login</CardTitle>
           <CardDescription>
