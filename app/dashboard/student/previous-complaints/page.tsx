@@ -75,8 +75,7 @@ export default function PreviousComplaints() {
       // Use a simpler query without orderBy to avoid index issues
       const q = query(
         collection(db, "complaints"),
-        where("userId", "==", userId),
-        where("status", "in", ["resolved", "rejected"])
+        where("userId", "==", userId)
       );
 
       const querySnapshot = await getDocs(q);
@@ -84,15 +83,21 @@ export default function PreviousComplaints() {
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        complaintsData.push({
-          id: doc.id,
-          title: data.title,
-          category: data.category,
-          status: data.status,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-          description: data.description,
-        });
+        // Only add resolved complaints
+        if (data.status === "resolved") {
+          complaintsData.push({
+            id: doc.id,
+            title: data.title,
+            category: data.category,
+            subcategory: data.subcategory || "",
+            status: data.status,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date(),
+            description: data.description,
+            semester: data.semester || "",
+            username: data.username || "",
+          });
+        }
       });
 
       // Sort the results in memory instead of using orderBy

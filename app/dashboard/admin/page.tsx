@@ -85,6 +85,7 @@ type Complaint = {
   assignedTo?: string;
   studentConfirmed?: boolean;
   studentResolutionResponse?: string;
+  department?: string;
 };
 
 type FacultyUser = {
@@ -294,6 +295,7 @@ export default function AdminDashboard() {
           assignedTo: data.assignedTo || null,
           studentConfirmed: data.studentConfirmed || false,
           studentResolutionResponse: data.studentResolutionResponse || "",
+          department: data.department || "",
         });
       });
 
@@ -352,6 +354,7 @@ export default function AdminDashboard() {
           assignedTo: data.assignedTo || null,
           studentConfirmed: data.studentConfirmed || false,
           studentResolutionResponse: data.studentResolutionResponse || "",
+          department: data.department || "",
         });
       });
 
@@ -530,7 +533,24 @@ export default function AdminDashboard() {
     setSelectedFaculty("");
     setForwardDialogOpen(true);
   };
+  // Format department name for display
+  const formatDepartment = (departmentName: string | undefined) => {
+    if (!departmentName) return "N/A";
+    return departmentName
+      .replace(/-/g, " ")
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
 
+  // Format title with department
+  const formatTitleWithDepartment = (
+    title: string,
+    departmentName: string | undefined
+  ) => {
+    const formattedDepartment = formatDepartment(departmentName);
+    return `${title} / ${formattedDepartment}`;
+  };
   // Filter students based on search query
   const filteredStudents = useMemo(() => {
     if (!studentSearchQuery.trim()) return studentUsers;
@@ -1037,7 +1057,10 @@ export default function AdminDashboard() {
                           <div className="flex justify-between items-start mb-2">
                             <div>
                               <h3 className="font-semibold text-lg">
-                                {complaint.title}
+                                {formatTitleWithDepartment(
+                                  complaint.title,
+                                  complaint.department
+                                )}
                               </h3>
                               <p className="text-sm text-muted-foreground">
                                 {complaint.category.charAt(0).toUpperCase() +
@@ -1179,7 +1202,10 @@ export default function AdminDashboard() {
                           <div className="flex justify-between items-start mb-2">
                             <div>
                               <h3 className="font-semibold text-lg">
-                                {complaint.title}
+                                {formatTitleWithDepartment(
+                                  complaint.title,
+                                  complaint.department
+                                )}
                               </h3>
                               <p className="text-sm text-muted-foreground">
                                 {complaint.category.charAt(0).toUpperCase() +
@@ -1192,6 +1218,7 @@ export default function AdminDashboard() {
                                 {complaint.updatedAt.toLocaleDateString()}
                               </p>
                             </div>
+
                             <div className="flex items-center gap-2">
                               <Badge variant="success">Resolved</Badge>
                               {complaint.studentConfirmed && (

@@ -258,7 +258,8 @@ export default function MakeComplaint() {
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setTitle(e.target.value)
                   }
-                  placeholder="Brief title for your complaint"
+                  maxLength={50}
+                  placeholder="Max charecters 50"
                   required
                 />
               </div>

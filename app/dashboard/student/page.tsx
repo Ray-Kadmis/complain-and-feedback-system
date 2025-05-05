@@ -61,12 +61,12 @@ type Complaint = {
   title: string;
   category: string;
   subcategory: string;
-  description: string;
   status: string;
   createdAt: any;
   updatedAt: any;
   username: string;
   semester: string;
+  department: string;
 };
 
 export default function StudentDashboard() {
@@ -107,27 +107,31 @@ export default function StudentDashboard() {
 
   const fetchComplaints = async (userId: string, userDoc: any) => {
     try {
+      // Simplified query that doesn't require a composite index
       const q = query(
         collection(db, "complaints"),
         where("userId", "==", userId)
       );
+
       const querySnapshot = await getDocs(q);
       const complaintsData: Complaint[] = [];
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        complaintsData.push({
-          id: doc.id,
-          title: data.title,
-          category: data.category,
-          subcategory: data.subcategory || "",
-          description: data.description,
-          status: data.status,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-          username: data.username,
-          semester: data.semester || "",
-        });
+        // Only add complaints that are not resolved
+        if (data.status !== "resolved") {
+          complaintsData.push({
+            id: doc.id,
+            title: data.title,
+            category: data.category,
+            subcategory: data.subcategory || "",
+            status: data.status,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date(),
+            semester: data.semester || "",
+            department: data.department,
+          });
+        }
       });
 
       // Sort by date (newest first)
@@ -313,7 +317,9 @@ export default function StudentDashboard() {
         <Card>
           <CardHeader>
             <CardTitle>Your Complaints</CardTitle>
-            <CardDescription>All complaints submitted by you</CardDescription>
+            <CardDescription>
+              All Active Complaints submitted by you
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {complaints.length > 0 ? (
@@ -324,9 +330,10 @@ export default function StudentDashboard() {
                       <th className="p-3 text-left">Category \ Subcategory</th>
                       <th className="p-3 text-left">Title</th>
                       <th className="p-3 text-left">Status</th>
-                      <th className="p-3 text-left">Submitted By</th>
+                      <th className="p-3 text-left">Department</th>
                       <th className="p-3 text-left">Semester</th>
                       <th className="p-3 text-left">Date</th>
+                      <th className="p-3 text-left">Updated on</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -350,11 +357,6 @@ export default function StudentDashboard() {
                                   {complaint.title}
                                 </span>
                               </TooltipTrigger>
-                              <TooltipContent className="max-w-sm">
-                                <p className="text-sm">
-                                  {complaint.description}
-                                </p>
-                              </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                         </td>
@@ -370,10 +372,13 @@ export default function StudentDashboard() {
                                 complaint.status.slice(1)}
                           </Badge>
                         </td>
-                        <td className="p-3">{complaint.username}</td>
+                        <td className="p-3">{complaint.department}</td>
                         <td className="p-3">{complaint.semester || "N/A"}</td>
                         <td className="p-3">
                           {complaint.createdAt.toLocaleDateString()}
+                        </td>
+                        <td className="p-3">
+                          {complaint.updatedAt.toLocaleDateString()}
                         </td>
                       </tr>
                     ))}
