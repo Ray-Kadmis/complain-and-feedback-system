@@ -1,5 +1,5 @@
 "use client";
-import Squares from "@/components/Squares";
+
 import type React from "react";
 
 import { useState, useEffect } from "react";
@@ -28,8 +28,12 @@ import {
   getDocs,
   updateDoc,
   FirestoreError,
+  deleteDoc,
+  serverTimestamp,
 } from "firebase/firestore";
-
+import { MessageSquare } from "lucide-react";
+import { SimpleChatDialog } from "@/components/chat/simple-chat-dialog";
+import Squares from "@/components/Squares";
 // Firebase configuration
 const firebaseConfig = {
   // Your Firebase config here
@@ -53,6 +57,7 @@ type Complaint = {
   subcategory: string;
   description: string;
   username: string;
+  userId: string;
   semester?: string;
   status: string;
   createdAt: any;
@@ -61,6 +66,7 @@ type Complaint = {
   assignedTo?: string;
   studentConfirmed?: boolean;
   studentResolutionResponse?: string;
+  department?: string;
 };
 
 export default function FacultyDashboard() {
@@ -75,6 +81,12 @@ export default function FacultyDashboard() {
   const [awaitingConfirmationComplaints, setAwaitingConfirmationComplaints] =
     useState<Complaint[]>([]);
   const [indexError, setIndexError] = useState<string | null>(null);
+
+  const [chatDialogOpen, setChatDialogOpen] = useState(false);
+  const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(
+    null
+  );
+  const [selectedComplaintTitle, setSelectedComplaintTitle] = useState("");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -125,6 +137,7 @@ export default function FacultyDashboard() {
           subcategory: data.subcategory || "",
           description: data.description,
           username: data.username,
+          userId: data.userId || "",
           semester: data.semester || "",
           status: data.status,
           createdAt: data.createdAt?.toDate() || new Date(),
@@ -180,13 +193,42 @@ export default function FacultyDashboard() {
     }
   };
 
+  // Function to delete all chat messages for a complaint
+  const deleteComplaintChats = async (complaintId: string) => {
+    try {
+      // Query all chat messages for this complaint
+      const chatQuery = query(
+        collection(db, "chats"),
+        where("complaintId", "==", complaintId)
+      );
+      const chatSnapshot = await getDocs(chatQuery);
+
+      // Delete each chat message
+      const deletePromises = chatSnapshot.docs.map((doc) => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+
+      console.log(
+        `Deleted ${chatSnapshot.size} chat messages for complaint ${complaintId}`
+      );
+    } catch (error) {
+      console.error("Error deleting chat messages:", error);
+    }
+  };
+
   const handleStatusChange = async (complaintId: string, newStatus: string) => {
     try {
       // Update the complaint status in Firestore
       await updateDoc(doc(db, "complaints", complaintId), {
         status: newStatus,
-        updatedAt: new Date(),
+        updatedAt: serverTimestamp(),
       });
+
+      // If the complaint is being marked as resolved or awaiting confirmation, delete its chat messages
+      if (newStatus === "resolved" || newStatus === "awaiting confirmation") {
+        // We'll delete chat messages when the complaint is marked as awaiting confirmation
+        // This is because at this point, the faculty considers the issue resolved
+        await deleteComplaintChats(complaintId);
+      }
 
       // Update local state
       if (newStatus === "active") {
@@ -279,6 +321,12 @@ export default function FacultyDashboard() {
     );
   };
 
+  const handleOpenChat = (complaint: Complaint) => {
+    setSelectedComplaintId(complaint.id);
+    setSelectedComplaintTitle(complaint.title);
+    setChatDialogOpen(true);
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -296,7 +344,8 @@ export default function FacultyDashboard() {
     setComplaints: React.Dispatch<React.SetStateAction<Complaint[]>>,
     showActionButton = false,
     actionButtonText = "",
-    onAction: (id: string) => void = () => {}
+    onAction: (id: string) => void = () => {},
+    showChatButton = false
   ) => {
     return complaints.length > 0 ? (
       <div className="space-y-4">
@@ -326,6 +375,20 @@ export default function FacultyDashboard() {
                       : complaint.status.charAt(0).toUpperCase() +
                         complaint.status.slice(1)}
                   </Badge>
+
+                  {/* Chat button - only show for active complaints */}
+                  {showChatButton && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex items-center gap-1"
+                      onClick={() => handleOpenChat(complaint)}
+                    >
+                      <MessageSquare className="h-3 w-3" /> Chat
+                    </Button>
+                  )}
+
+                  {/* Action button (Mark as Active/Resolved) */}
                   {showActionButton && (
                     <Button
                       size="sm"
@@ -335,6 +398,7 @@ export default function FacultyDashboard() {
                       {actionButtonText}
                     </Button>
                   )}
+
                   {complaint.status === "resolved" &&
                     complaint.studentResolutionResponse && (
                       <Badge
@@ -414,11 +478,19 @@ export default function FacultyDashboard() {
         </div>
 
         <Tabs defaultValue="received" className="max-w-4xl mx-auto">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="received">Received Complaints</TabsTrigger>
-            <TabsTrigger value="active">Active Complaints</TabsTrigger>
-            <TabsTrigger value="awaiting">Awaiting Confirmation</TabsTrigger>
-            <TabsTrigger value="resolved">Resolved Complaints</TabsTrigger>
+          <TabsList className="flex flex-wrap w-full gap-2 mb-2 min-h-fit">
+            <TabsTrigger value="received" className="flex-grow md:flex-grow-0">
+              Received Complaints
+            </TabsTrigger>
+            <TabsTrigger value="active" className="flex-grow md:flex-grow-0">
+              Active Complaints
+            </TabsTrigger>
+            <TabsTrigger value="awaiting" className="flex-grow md:flex-grow-0">
+              Awaiting Confirmation
+            </TabsTrigger>
+            <TabsTrigger value="resolved" className="flex-grow md:flex-grow-0">
+              Resolved Complaints
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="received">
@@ -455,7 +527,8 @@ export default function FacultyDashboard() {
                   setActiveComplaints,
                   true,
                   "Mark as Resolved",
-                  (id) => handleStatusChange(id, "awaiting confirmation")
+                  (id) => handleStatusChange(id, "awaiting confirmation"),
+                  true // Show chat button only for active complaints
                 )}
               </CardContent>
             </Card>
@@ -495,6 +568,15 @@ export default function FacultyDashboard() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {selectedComplaintId && (
+          <SimpleChatDialog
+            open={chatDialogOpen}
+            onOpenChange={setChatDialogOpen}
+            complaintId={selectedComplaintId}
+            complaintTitle={selectedComplaintTitle}
+          />
+        )}
       </div>
     </>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import Waves from "@/components/BgWaves";
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -35,7 +35,7 @@ const firebaseConfig = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
-
+import Waves from "@/components/BgWaves";
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -126,7 +126,7 @@ export default function LoginPage({ params }: { params: { role: string } }) {
   }
 
   return (
-    <div className="flex min-h-screen items-center  justify-center">
+    <>
       <div className="absolute inset-0 w-full h-full z-0">
         <Waves
           lineColor="#005B94"
@@ -141,54 +141,56 @@ export default function LoginPage({ params }: { params: { role: string } }) {
           xGap={12}
           yGap={12}
         />
+      </div>{" "}
+      <div className="flex min-h-screen items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>{roleTitle} Login</CardTitle>
+            <CardDescription>
+              Enter your credentials to access the {role} dashboard
+            </CardDescription>
+          </CardHeader>
+          <form onSubmit={handleLogin}>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  placeholder="Enter your username"
+                  value={username}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setUsername(e.target.value)
+                  }
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setPassword(e.target.value)
+                  }
+                  required
+                />
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col space-y-4">
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Logging in..." : "Login"}
+              </Button>
+              <div className="text-center text-sm">
+                <Link href="/" className="text-primary hover:underline">
+                  Back to role selection
+                </Link>
+              </div>
+            </CardFooter>
+          </form>
+        </Card>
       </div>
-      <Card className="w-full mx-4 bg-transparent backdrop-blur-lg max-w-md">
-        <CardHeader>
-          <CardTitle>{roleTitle} Login</CardTitle>
-          <CardDescription>
-            Enter your credentials to access the {role} dashboard
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleLogin}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                placeholder="Enter your username"
-                value={username}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setUsername(e.target.value)
-                }
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setPassword(e.target.value)
-                }
-                required
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Logging in..." : "Login"}
-            </Button>
-            <div className="text-center text-sm">
-              <Link href="/" className="text-primary hover:underline">
-                Back to role selection
-              </Link>
-            </div>
-          </CardFooter>
-        </form>
-      </Card>
-    </div>
+    </>
   );
 }

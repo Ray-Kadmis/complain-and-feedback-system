@@ -1,41 +1,21 @@
-"use client";
+"use client"
 
-import type React from "react";
+import type React from "react"
+
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { initializeApp } from "firebase/app"
+import { getAuth, onAuthStateChanged } from "firebase/auth"
+import { getFirestore, collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import Squares from "@/components/Squares";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  serverTimestamp,
-  doc,
-  getDoc,
-} from "firebase/firestore";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-
 // Firebase configuration
 const firebaseConfig = {
   // Your Firebase config here
@@ -45,24 +25,24 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
+}
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+const app = initializeApp(firebaseConfig)
+const auth = getAuth(app)
+const db = getFirestore(app)
 
 export default function MakeComplaint() {
-  const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("");
-  const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [username, setUsername] = useState<string | null>(null);
-  const [semester, setSemester] = useState("1");
-  const [studentDepartment, setStudentDepartment] = useState("");
-  const [subcategory, setSubcategory] = useState("");
+  const router = useRouter()
+  const [title, setTitle] = useState("")
+  const [category, setCategory] = useState("")
+  const [description, setDescription] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [username, setUsername] = useState<string | null>(null)
+  const [semester, setSemester] = useState("1")
+  const [studentDepartment, setStudentDepartment] = useState("")
+  const [subcategory, setSubcategory] = useState("")
 
   // Categories and subcategories mapping
   const categoryOptions = [
@@ -73,7 +53,7 @@ export default function MakeComplaint() {
     "Disciplinary and Behavioral",
     "Facilities and Infrastructure",
     "Administrative",
-  ];
+  ]
 
   const subcategoryMap: Record<string, string[]> = {
     academic: [
@@ -125,7 +105,7 @@ export default function MakeComplaint() {
       "Scheduling conflicts",
       "Staff responsiveness",
     ],
-  };
+  }
 
   // Departments list
   const departments = [
@@ -139,43 +119,43 @@ export default function MakeComplaint() {
     "Mechanical Engineering",
     "Civil Engineering",
     "Business Administration",
-  ];
+  ]
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        setUserId(user.uid);
+        setUserId(user.uid)
 
         // Get username from Firestore
-        const userDoc = await getDoc(doc(db, "users", user.uid));
+        const userDoc = await getDoc(doc(db, "users", user.uid))
         if (userDoc.exists()) {
-          setUsername(userDoc.data().username);
+          setUsername(userDoc.data().username)
           // Set the student's department if available
           if (userDoc.data().department) {
-            setStudentDepartment(userDoc.data().department);
+            setStudentDepartment(userDoc.data().department)
           }
         } else {
-          router.push("/login/student");
+          router.push("/login/student")
         }
       } else {
-        router.push("/login/student");
+        router.push("/login/student")
       }
-    });
+    })
 
-    return () => unsubscribe();
-  }, [router]);
+    return () => unsubscribe()
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
 
     if (!userId || !username) {
       toast.error("Authentication error", {
         description: "You must be logged in to submit a complaint.",
-      });
-      return;
+      })
+      return
     }
 
-    setLoading(true);
+    setLoading(true)
 
     try {
       // Add complaint to Firestore
@@ -191,35 +171,34 @@ export default function MakeComplaint() {
         status: "pending",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      });
+      })
 
       toast.success("Complaint submitted", {
         description: "Your complaint has been submitted successfully.",
-      });
+      })
 
       // Reset form
-      setTitle("");
-      setCategory("");
-      setSubcategory("");
-      setDescription("");
+      setTitle("")
+      setCategory("")
+      setSubcategory("")
+      setDescription("")
 
       // Redirect to dashboard
-      router.push("/dashboard/student");
+      router.push("/dashboard/student")
     } catch (error: any) {
-      console.error("Error submitting complaint:", error);
+      console.error("Error submitting complaint:", error)
       toast.error("Error submitting complaint", {
-        description:
-          error.message || "There was a problem submitting your complaint.",
-      });
+        description: error.message || "There was a problem submitting your complaint.",
+      })
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   // Reset subcategory when category changes
   useEffect(() => {
-    setSubcategory("");
-  }, [category]);
+    setSubcategory("")
+  }, [category])
 
   return (
     <>
@@ -252,16 +231,24 @@ export default function MakeComplaint() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Complaint Title</Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setTitle(e.target.value)
-                  }
-                  maxLength={50}
-                  placeholder="Max charecters 50"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="title"
+                    value={title}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      // Limit to 50 characters
+                      if (e.target.value.length <= 50) {
+                        setTitle(e.target.value);
+                      }
+                    }}
+                    placeholder="Brief title for your complaint"
+                    maxLength={50}
+                    required
+                  />
+                  <div className="absolute right-2 bottom-2 text-xs text-muted-foreground">
+                    {title.length}/50
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">

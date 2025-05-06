@@ -25,7 +25,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ChevronDown, ExternalLink, Forward, Search } from "lucide-react";
+import {
+  ChevronDown,
+  ExternalLink,
+  Forward,
+  Search,
+  MessageSquare,
+} from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Dialog,
@@ -53,6 +59,7 @@ import {
   where,
   FirestoreError,
 } from "firebase/firestore";
+import { SimpleChatDialog } from "@/components/chat/simple-chat-dialog";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -77,6 +84,7 @@ type Complaint = {
   subcategory: string;
   description: string;
   username: string;
+  userId: string; // Add this field
   semester?: string;
   status: string;
   createdAt: any;
@@ -147,12 +155,29 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
   const [facultySearchQuery, setFacultySearchQuery] = useState("");
+  // Add these new filter state variables
+  const [studentProgramFilter, setStudentProgramFilter] = useState<string>("");
+  const [studentYearFilter, setStudentYearFilter] = useState<string>("");
+  const [studentBatchFilter, setStudentBatchFilter] = useState<string>("");
+  const [facultyDepartmentFilter, setFacultyDepartmentFilter] =
+    useState<string>("");
   const [resolvedComplaints, setResolvedComplaints] = useState<Complaint[]>([]);
   const [filteredResolvedComplaints, setFilteredResolvedComplaints] = useState<
     Complaint[]
   >([]);
   const [resolvedComplaintsLoaded, setResolvedComplaintsLoaded] =
     useState(false);
+
+  // Add these state variables inside the AdminDashboard component
+  const [chatDialogOpen, setChatDialogOpen] = useState(false);
+  const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(
+    null
+  );
+  const [selectedComplaintTitle, setSelectedComplaintTitle] = useState("");
+  const [chatRooms, setChatRooms] = useState<Record<string, string>>({}); // Map of complaintId to chatRoomId
+  const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | null>(
+    null
+  );
 
   // Basic user info
   const [username, setUsername] = useState("");
@@ -188,6 +213,7 @@ export default function AdminDashboard() {
           fetchUsers();
           fetchComplaints();
           fetchFacultyUsers();
+          fetchChatRooms();
         } else {
           toast.error("Access denied", {
             description:
@@ -202,7 +228,7 @@ export default function AdminDashboard() {
     });
 
     return () => unsubscribe();
-  }, [router]);
+  }, [router, isAdmin]);
 
   // Load resolved complaints only when the resolved tab is selected
   useEffect(() => {
@@ -268,6 +294,7 @@ export default function AdminDashboard() {
     }
   };
 
+  // Update the fetchComplaints function to include userId
   const fetchComplaints = async () => {
     try {
       // Fetch non-resolved complaints
@@ -287,6 +314,7 @@ export default function AdminDashboard() {
           subcategory: data.subcategory || "",
           description: data.description,
           username: data.username,
+          userId: data.userId || "", // Include userId
           semester: data.semester || "",
           status: data.status,
           createdAt: data.createdAt?.toDate() || new Date(),
@@ -346,6 +374,7 @@ export default function AdminDashboard() {
           subcategory: data.subcategory || "",
           description: data.description,
           username: data.username,
+          userId: data.userId,
           semester: data.semester || "",
           status: data.status,
           createdAt: data.createdAt?.toDate() || new Date(),
@@ -533,6 +562,7 @@ export default function AdminDashboard() {
     setSelectedFaculty("");
     setForwardDialogOpen(true);
   };
+
   // Format department name for display
   const formatDepartment = (departmentName: string | undefined) => {
     if (!departmentName) return "N/A";
@@ -551,25 +581,113 @@ export default function AdminDashboard() {
     const formattedDepartment = formatDepartment(departmentName);
     return `${title} / ${formattedDepartment}`;
   };
-  // Filter students based on search query
+
+  // Filter students based on search query and filters
   const filteredStudents = useMemo(() => {
-    if (!studentSearchQuery.trim()) return studentUsers;
+    let filtered = studentUsers;
 
-    const query = studentSearchQuery.toLowerCase();
-    return studentUsers.filter((student) =>
-      student.username.toLowerCase().includes(query)
-    );
-  }, [studentUsers, studentSearchQuery]);
+    // Apply text search filter
+    if (studentSearchQuery.trim()) {
+      const query = studentSearchQuery.toLowerCase();
+      filtered = filtered.filter((student) =>
+        student.username.toLowerCase().includes(query)
+      );
+    }
 
-  // Filter faculty based on search query
+    // Apply program filter
+    if (studentProgramFilter && studentProgramFilter !== "all") {
+      filtered = filtered.filter(
+        (student) =>
+          student.program?.toLowerCase() === studentProgramFilter.toLowerCase()
+      );
+    }
+
+    // Apply year filter
+    if (studentYearFilter && studentYearFilter !== "all") {
+      filtered = filtered.filter(
+        (student) => student.academicYears?.start === studentYearFilter
+      );
+    }
+
+    // Apply batch filter
+    if (studentBatchFilter && studentBatchFilter !== "all") {
+      filtered = filtered.filter(
+        (student) =>
+          student.batch?.toLowerCase() === studentBatchFilter.toLowerCase()
+      );
+    }
+
+    return filtered;
+  }, [
+    studentUsers,
+    studentSearchQuery,
+    studentProgramFilter,
+    studentYearFilter,
+    studentBatchFilter,
+  ]);
+
+  // Filter faculty based on search query and department filter
   const filteredFaculty = useMemo(() => {
-    if (!facultySearchQuery.trim()) return facultyUsers;
+    let filtered = facultyUsers;
 
-    const query = facultySearchQuery.toLowerCase();
-    return facultyUsers.filter((faculty) =>
-      faculty.username.toLowerCase().includes(query)
-    );
-  }, [facultyUsers, facultySearchQuery]);
+    // Apply text search filter
+    if (facultySearchQuery.trim()) {
+      const query = facultySearchQuery.toLowerCase();
+      filtered = filtered.filter((faculty) =>
+        faculty.username.toLowerCase().includes(query)
+      );
+    }
+
+    // Apply department filter
+    if (facultyDepartmentFilter && facultyDepartmentFilter !== "all") {
+      filtered = filtered.filter(
+        (faculty) =>
+          faculty.department?.toLowerCase() ===
+          facultyDepartmentFilter.toLowerCase()
+      );
+    }
+
+    return filtered;
+  }, [facultyUsers, facultySearchQuery, facultyDepartmentFilter]);
+
+  // Add this function inside the AdminDashboard component
+  const fetchChatRooms = async () => {
+    if (!auth.currentUser) return;
+
+    try {
+      const q = query(
+        collection(db, "chatRooms"),
+        where("participants", "array-contains", auth.currentUser.uid)
+      );
+      const querySnapshot = await getDocs(q);
+
+      const rooms: Record<string, string> = {};
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        rooms[data.complaintId] = doc.id;
+      });
+
+      setChatRooms(rooms);
+    } catch (error) {
+      console.error("Error fetching chat rooms:", error);
+    }
+  };
+
+  // Add this function inside the AdminDashboard component
+  const handleOpenChat = (complaintId: string, title: string) => {
+    setSelectedComplaintId(complaintId);
+    setSelectedComplaintTitle(title);
+    setChatDialogOpen(true);
+  };
+
+  // Add this function inside the AdminDashboard component
+  const handleViewChat = (complaintId: string, title: string) => {
+    if (chatRooms[complaintId]) {
+      setSelectedChatRoomId(chatRooms[complaintId]);
+      setSelectedComplaintTitle(title);
+      setChatDialogOpen(true);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -594,7 +712,8 @@ export default function AdminDashboard() {
           hoverFillColor="#750000"
         />
       </div>
-      <div className="container mx-auto py-10 relative">
+
+      <div className="container mx-auto py-10">
         <div className="flex justify-between items-center mb-10">
           <h1 className="text-4xl font-bold">Administrator Dashboard</h1>
           <Button variant="outline" onClick={handleLogout}>
@@ -608,11 +727,29 @@ export default function AdminDashboard() {
           onValueChange={setActiveTab}
           className="max-w-4xl mx-auto"
         >
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="create-user">Create User</TabsTrigger>
-            <TabsTrigger value="manage-users">Manage Users</TabsTrigger>
-            <TabsTrigger value="view-complaints">View Complaints</TabsTrigger>
-            <TabsTrigger value="resolved-complaints">
+          <TabsList className=" flex flex-wrap w-full gap-2 mb-2 min-h-fit">
+            <TabsTrigger
+              value="create-user"
+              className="flex-grow md:flex-grow-0"
+            >
+              Create User
+            </TabsTrigger>
+            <TabsTrigger
+              value="manage-users"
+              className="flex-grow md:flex-grow-0"
+            >
+              Manage Users
+            </TabsTrigger>
+            <TabsTrigger
+              value="view-complaints"
+              className="flex-grow md:flex-grow-0"
+            >
+              View Complaints
+            </TabsTrigger>
+            <TabsTrigger
+              value="resolved-complaints"
+              className="flex-grow md:flex-grow-0"
+            >
               Resolved Complaints
             </TabsTrigger>
           </TabsList>
@@ -868,7 +1005,7 @@ export default function AdminDashboard() {
                   </TabsList>
 
                   <TabsContent value="students" className="pt-4">
-                    <div className="mb-4">
+                    <div className="mb-4 space-y-4">
                       <div className="relative">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
@@ -880,6 +1017,71 @@ export default function AdminDashboard() {
                             setStudentSearchQuery(e.target.value)
                           }
                         />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="program-filter">Program</Label>
+                          <Select
+                            value={studentProgramFilter}
+                            onValueChange={setStudentProgramFilter}
+                          >
+                            <SelectTrigger id="program-filter">
+                              <SelectValue placeholder="All Programs" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Programs</SelectItem>
+                              {programs.map((prog) => (
+                                <SelectItem
+                                  key={prog}
+                                  value={prog.toLowerCase()}
+                                >
+                                  {prog}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="year-filter">Starting Year</Label>
+                          <Select
+                            value={studentYearFilter}
+                            onValueChange={setStudentYearFilter}
+                          >
+                            <SelectTrigger id="year-filter">
+                              <SelectValue placeholder="All Years" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Years</SelectItem>
+                              {years.map((year) => (
+                                <SelectItem
+                                  key={`filter-${year}`}
+                                  value={year.toString()}
+                                >
+                                  {year}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="batch-filter">Batch</Label>
+                          <Select
+                            value={studentBatchFilter}
+                            onValueChange={setStudentBatchFilter}
+                          >
+                            <SelectTrigger id="batch-filter">
+                              <SelectValue placeholder="All Batches" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Batches</SelectItem>
+                              <SelectItem value="fall">Fall</SelectItem>
+                              <SelectItem value="spring">Spring</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </div>
 
@@ -949,7 +1151,7 @@ export default function AdminDashboard() {
                   </TabsContent>
 
                   <TabsContent value="faculty" className="pt-4">
-                    <div className="mb-4">
+                    <div className="mb-4 space-y-4">
                       <div className="relative">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
@@ -961,6 +1163,31 @@ export default function AdminDashboard() {
                             setFacultySearchQuery(e.target.value)
                           }
                         />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="faculty-department-filter">
+                          Department
+                        </Label>
+                        <Select
+                          value={facultyDepartmentFilter}
+                          onValueChange={setFacultyDepartmentFilter}
+                        >
+                          <SelectTrigger id="faculty-department-filter">
+                            <SelectValue placeholder="All Departments" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Departments</SelectItem>
+                            {departments.map((dept) => (
+                              <SelectItem
+                                key={dept}
+                                value={dept.toLowerCase().replace(/\s+/g, "-")}
+                              >
+                                {dept}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
 
@@ -1064,9 +1291,9 @@ export default function AdminDashboard() {
                               </h3>
                               <p className="text-sm text-muted-foreground">
                                 {complaint.category.charAt(0).toUpperCase() +
-                                  complaint.category.slice(1)}{" "}
-                                \{" "}
-                                {complaint.subcategory.charAt(0).toUpperCase() +
+                                  complaint.subcategory
+                                    .charAt(0)
+                                    .toUpperCase() +
                                   complaint.subcategory.slice(1)}{" "}
                                 • Submitted by: {complaint.username} • Semester:{" "}
                                 {complaint.semester || "N/A"} • Date:{" "}
@@ -1084,6 +1311,20 @@ export default function AdminDashboard() {
                                   : complaint.status.charAt(0).toUpperCase() +
                                     complaint.status.slice(1)}
                               </Badge>
+
+                              {/* Chat button - only show if chat room exists */}
+                              {/* Chat button - only show if chat room exists */}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="flex items-center gap-1"
+                                onClick={() =>
+                                  handleOpenChat(complaint.id, complaint.title)
+                                }
+                              >
+                                <MessageSquare className="h-3 w-3" /> Chat
+                              </Button>
+
                               {complaint.status === "pending" && (
                                 <Button
                                   size="sm"
@@ -1209,16 +1450,12 @@ export default function AdminDashboard() {
                               </h3>
                               <p className="text-sm text-muted-foreground">
                                 {complaint.category.charAt(0).toUpperCase() +
-                                  complaint.category.slice(1)}{" "}
-                                \{" "}
-                                {complaint.subcategory.charAt(0).toUpperCase() +
                                   complaint.subcategory.slice(1)}{" "}
                                 • Submitted by: {complaint.username} • Semester:{" "}
                                 {complaint.semester || "N/A"} • Resolved:{" "}
                                 {complaint.updatedAt.toLocaleDateString()}
                               </p>
                             </div>
-
                             <div className="flex items-center gap-2">
                               <Badge variant="success">Resolved</Badge>
                               {complaint.studentConfirmed && (
@@ -1365,6 +1602,15 @@ export default function AdminDashboard() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {selectedComplaintId && (
+          <SimpleChatDialog
+            open={chatDialogOpen}
+            onOpenChange={setChatDialogOpen}
+            complaintId={selectedComplaintId}
+            complaintTitle={selectedComplaintTitle}
+          />
+        )}
       </div>
     </>
   );

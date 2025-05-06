@@ -1,36 +1,16 @@
-"use client";
-import Squares from "@/components/Squares";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { CheckCircle, XCircle } from "lucide-react";
-import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  updateDoc,
-} from "firebase/firestore";
+"use client"
+
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { CheckCircle, XCircle, MessageSquare } from "lucide-react"
+import { initializeApp } from "firebase/app"
+import { getAuth, onAuthStateChanged } from "firebase/auth"
+import { getFirestore, doc, getDoc, collection, query, where, getDocs, updateDoc } from "firebase/firestore"
 import {
   Dialog,
   DialogContent,
@@ -38,8 +18,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-
+} from "@/components/ui/dialog"
+import { SimpleChatDialog } from "@/components/chat/simple-chat-dialog"
+import Squares from "@/components/Squares";
 // Firebase configuration
 const firebaseConfig = {
   // Your Firebase config here
@@ -49,75 +30,72 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
+}
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+const app = initializeApp(firebaseConfig)
+const auth = getAuth(app)
+const db = getFirestore(app)
 
 type Complaint = {
-  id: string;
-  title: string;
-  category: string;
-  subcategory: string;
-  status: string;
-  createdAt: any;
-  updatedAt: any;
-  username: string;
-  semester: string;
-  department: string;
-};
+  id: string
+  title: string
+  category: string
+  subcategory: string
+  description: string
+  status: string
+  createdAt: any
+  updatedAt: any
+  username: string
+  semester: string
+}
 
 export default function StudentDashboard() {
-  const router = useRouter();
-  const [username, setUsername] = useState("");
-  const [isStudent, setIsStudent] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(
-    null
-  );
-  const [resolutionDialogOpen, setResolutionDialogOpen] = useState(false);
+  const router = useRouter()
+  const [username, setUsername] = useState("")
+  const [isStudent, setIsStudent] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [complaints, setComplaints] = useState<Complaint[]>([])
+  const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null)
+  const [resolutionDialogOpen, setResolutionDialogOpen] = useState(false)
+  const [chatDialogOpen, setChatDialogOpen] = useState(false)
+  const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null)
+  const [selectedComplaintTitle, setSelectedComplaintTitle] = useState("")
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         // Check if user is a student
-        const userDoc = await getDoc(doc(db, "users", user.uid));
+        const userDoc = await getDoc(doc(db, "users", user.uid))
         if (userDoc.exists() && userDoc.data()?.role === "student") {
-          setIsStudent(true);
-          setUsername(userDoc.data()?.username || "");
-          fetchComplaints(user.uid, userDoc);
+          setIsStudent(true)
+          setUsername(userDoc.data()?.username || "")
+          fetchComplaints(user.uid)
         } else {
           toast.error("Access denied", {
-            description:
-              "You don't have permission to access the student dashboard.",
-          });
-          router.push("/");
+            description: "You don't have permission to access the student dashboard.",
+          })
+          router.push("/")
         }
       } else {
-        router.push("/login/student");
+        router.push("/login/student")
       }
-      setIsLoading(false);
-    });
+      setIsLoading(false)
+    })
 
-    return () => unsubscribe();
-  }, [router]);
+    return () => unsubscribe()
+  }, [router])
 
-  const fetchComplaints = async (userId: string, userDoc: any) => {
+  const fetchComplaints = async (userId: string) => {
     try {
       // Simplified query that doesn't require a composite index
-      const q = query(
-        collection(db, "complaints"),
-        where("userId", "==", userId)
-      );
+      const q = query(collection(db, "complaints"), where("userId", "==", userId))
 
-      const querySnapshot = await getDocs(q);
-      const complaintsData: Complaint[] = [];
+      const querySnapshot = await getDocs(q)
+      const complaintsData: Complaint[] = []
 
       querySnapshot.forEach((doc) => {
-        const data = doc.data();
+        const data = doc.data()
         // Only add complaints that are not resolved
         if (data.status !== "resolved") {
           complaintsData.push({
@@ -125,39 +103,38 @@ export default function StudentDashboard() {
             title: data.title,
             category: data.category,
             subcategory: data.subcategory || "",
+            description: data.description,
             status: data.status,
             createdAt: data.createdAt?.toDate() || new Date(),
             updatedAt: data.updatedAt?.toDate() || new Date(),
+            username: data.username,
             semester: data.semester || "",
-            department: data.department,
-          });
+          })
         }
-      });
+      })
 
       // Sort by date (newest first)
-      complaintsData.sort(
-        (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
-      );
-      setComplaints(complaintsData);
+      complaintsData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      setComplaints(complaintsData)
 
       // Check if any complaints need resolution confirmation
       const awaitingConfirmationComplaints = complaintsData.filter(
-        (complaint) => complaint.status === "awaiting confirmation"
-      );
+        (complaint) => complaint.status === "awaiting confirmation",
+      )
       if (awaitingConfirmationComplaints.length > 0) {
-        setSelectedComplaint(awaitingConfirmationComplaints[0]);
-        setResolutionDialogOpen(true);
+        setSelectedComplaint(awaitingConfirmationComplaints[0])
+        setResolutionDialogOpen(true)
       }
     } catch (error) {
-      console.error("Error fetching complaints:", error);
+      console.error("Error fetching complaints:", error)
       toast.error("Error", {
         description: "Failed to load complaints. Please try again.",
-      });
+      })
     }
-  };
+  }
 
   const handleResolutionConfirmation = async (confirmed: boolean) => {
-    if (!selectedComplaint) return;
+    if (!selectedComplaint) return
 
     try {
       await updateDoc(doc(db, "complaints", selectedComplaint.id), {
@@ -165,93 +142,100 @@ export default function StudentDashboard() {
         status: confirmed ? "resolved" : "active",
         studentResolutionResponse: confirmed ? "confirmed" : "rejected",
         updatedAt: new Date(),
-      });
+      })
 
-      // Update local state
-      setComplaints(
-        complaints.map((c) =>
-          c.id === selectedComplaint.id
-            ? {
-                ...c,
-                status: confirmed ? "resolved" : "active",
-                studentConfirmed: true,
-                updatedAt: new Date(),
-              }
-            : c
+      // Update local state - remove the complaint if it's resolved
+      if (confirmed) {
+        setComplaints(complaints.filter((c) => c.id !== selectedComplaint.id))
+      } else {
+        setComplaints(
+          complaints.map((c) =>
+            c.id === selectedComplaint.id
+              ? {
+                  ...c,
+                  status: "active",
+                  studentConfirmed: true,
+                  updatedAt: new Date(),
+                }
+              : c,
+          ),
         )
-      );
+      }
 
-      toast.success(
-        confirmed ? "Resolution confirmed" : "Issue reported as unresolved",
-        {
-          description: confirmed
-            ? "Thank you for confirming that your issue has been resolved."
-            : "The complaint has been sent back to the faculty for further action.",
-        }
-      );
+      toast.success(confirmed ? "Resolution confirmed" : "Issue reported as unresolved", {
+        description: confirmed
+          ? "Thank you for confirming that your issue has been resolved."
+          : "The complaint has been sent back to the faculty for further action.",
+      })
 
       // Close dialog and check for next complaint needing confirmation
-      setResolutionDialogOpen(false);
-      setSelectedComplaint(null);
+      setResolutionDialogOpen(false)
+      setSelectedComplaint(null)
 
       const nextUnconfirmed = complaints.find(
-        (c) =>
-          c.status === "awaiting confirmation" && c.id !== selectedComplaint.id
-      );
+        (c) => c.status === "awaiting confirmation" && c.id !== selectedComplaint.id,
+      )
       if (nextUnconfirmed) {
         setTimeout(() => {
-          setSelectedComplaint(nextUnconfirmed);
-          setResolutionDialogOpen(true);
-        }, 500);
+          setSelectedComplaint(nextUnconfirmed)
+          setResolutionDialogOpen(true)
+        }, 500)
       }
     } catch (error) {
-      console.error("Error updating complaint:", error);
+      console.error("Error updating complaint:", error)
       toast.error("Error", {
         description: "Failed to update complaint status. Please try again.",
-      });
+      })
     }
-  };
+  }
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case "pending":
-        return "secondary";
+        return "secondary"
       case "under review":
-        return "warning";
+        return "warning"
       case "active":
-        return "default";
+        return "default"
       case "in-progress":
-        return "default";
+        return "default"
       case "awaiting confirmation":
-        return "info";
+        return "info"
       case "resolved":
-        return "success";
+        return "success"
       case "rejected":
-        return "destructive";
+        return "destructive"
       default:
-        return "outline";
+        return "outline"
     }
-  };
+  }
 
   const handleLogout = async () => {
     try {
-      await auth.signOut();
-      router.push("/");
+      await auth.signOut()
+      router.push("/")
     } catch (error) {
-      console.error("Error signing out:", error);
+      console.error("Error signing out:", error)
     }
-  };
+  }
+
+  const handleOpenChat = (complaintId: string, title: string) => {
+    setSelectedComplaintId(complaintId)
+    setSelectedComplaintTitle(title)
+    setChatDialogOpen(true)
+  }
+
+  // Check if a complaint is eligible for chat (only active complaints)
+  const isChatEnabled = (status: string) => {
+    return status === "active"
+  }
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        Loading...
-      </div>
-    );
+    return <div className="flex min-h-screen items-center justify-center">Loading...</div>
   }
 
   if (!isStudent) {
-    return null; // Will redirect in useEffect
+    return null // Will redirect in useEffect
   }
 
   return (
@@ -318,7 +302,7 @@ export default function StudentDashboard() {
           <CardHeader>
             <CardTitle>Your Complaints</CardTitle>
             <CardDescription>
-              All Active Complaints submitted by you
+              All active complaints submitted by you
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -330,10 +314,10 @@ export default function StudentDashboard() {
                       <th className="p-3 text-left">Category \ Subcategory</th>
                       <th className="p-3 text-left">Title</th>
                       <th className="p-3 text-left">Status</th>
-                      <th className="p-3 text-left">Department</th>
+                      <th className="p-3 text-left">Submitted By</th>
                       <th className="p-3 text-left">Semester</th>
                       <th className="p-3 text-left">Date</th>
-                      <th className="p-3 text-left">Updated on</th>
+                      <th className="p-3 text-left">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -357,6 +341,11 @@ export default function StudentDashboard() {
                                   {complaint.title}
                                 </span>
                               </TooltipTrigger>
+                              <TooltipContent className="max-w-sm">
+                                <p className="text-sm">
+                                  {complaint.description}
+                                </p>
+                              </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                         </td>
@@ -372,13 +361,38 @@ export default function StudentDashboard() {
                                 complaint.status.slice(1)}
                           </Badge>
                         </td>
-                        <td className="p-3">{complaint.department}</td>
+                        <td className="p-3">{complaint.username}</td>
                         <td className="p-3">{complaint.semester || "N/A"}</td>
                         <td className="p-3">
                           {complaint.createdAt.toLocaleDateString()}
                         </td>
                         <td className="p-3">
-                          {complaint.updatedAt.toLocaleDateString()}
+                          {isChatEnabled(complaint.status) ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex items-center gap-1"
+                              onClick={() =>
+                                handleOpenChat(complaint.id, complaint.title)
+                              }
+                            >
+                              <MessageSquare className="h-3 w-3" /> Chat
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex items-center gap-1"
+                              disabled
+                              title={
+                                complaint.status === "awaiting confirmation"
+                                  ? "Chat is disabled while awaiting confirmation"
+                                  : "Chat is only available for active complaints"
+                              }
+                            >
+                              <MessageSquare className="h-3 w-3" /> Chat
+                            </Button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -388,7 +402,7 @@ export default function StudentDashboard() {
             ) : (
               <div className="text-center py-10">
                 <p className="text-muted-foreground">
-                  You haven't submitted any complaints yet
+                  You haven't submitted any active complaints
                 </p>
                 <Button
                   className="mt-4"
@@ -469,6 +483,16 @@ export default function StudentDashboard() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Chat Dialog */}
+        {selectedComplaintId && (
+          <SimpleChatDialog
+            open={chatDialogOpen}
+            onOpenChange={setChatDialogOpen}
+            complaintId={selectedComplaintId}
+            complaintTitle={selectedComplaintTitle}
+          />
+        )}
       </div>
     </>
   );

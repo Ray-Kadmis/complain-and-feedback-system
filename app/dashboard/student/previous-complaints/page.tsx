@@ -1,5 +1,5 @@
 "use client";
-import Squares from "@/components/Squares";
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -24,7 +24,7 @@ import {
   getDocs,
   FirestoreError,
 } from "firebase/firestore";
-
+import Squares from "@/components/Squares";
 // Firebase configuration
 const firebaseConfig = {
   // Your Firebase config here
@@ -49,6 +49,9 @@ type Complaint = {
   createdAt: any;
   updatedAt: any;
   description: string;
+  subcategory: string;
+  semester: string;
+  username: string;
 };
 
 export default function PreviousComplaints() {
@@ -72,7 +75,7 @@ export default function PreviousComplaints() {
 
   const fetchPreviousComplaints = async (userId: string) => {
     try {
-      // Use a simpler query without orderBy to avoid index issues
+      // Simplified query that doesn't require a composite index
       const q = query(
         collection(db, "complaints"),
         where("userId", "==", userId)
@@ -199,7 +202,9 @@ export default function PreviousComplaints() {
         <Card>
           <CardHeader>
             <CardTitle>Previous Complaints</CardTitle>
-            <CardDescription>View your complaint history</CardDescription>
+            <CardDescription>
+              View your resolved complaint history
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -217,6 +222,9 @@ export default function PreviousComplaints() {
                           <p className="text-sm text-muted-foreground">
                             {complaint.category.charAt(0).toUpperCase() +
                               complaint.category.slice(1)}{" "}
+                            \{" "}
+                            {complaint.subcategory.charAt(0).toUpperCase() +
+                              complaint.subcategory.slice(1)}{" "}
                             • Submitted:{" "}
                             {complaint.createdAt.toLocaleDateString()} •
                             Resolved: {complaint.updatedAt.toLocaleDateString()}
@@ -239,7 +247,7 @@ export default function PreviousComplaints() {
             ) : (
               <div className="text-center py-10">
                 <p className="text-muted-foreground">
-                  You don't have any previous complaints
+                  You don't have any resolved complaints
                 </p>
                 <Button
                   className="mt-4"

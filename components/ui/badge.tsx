@@ -1,7 +1,8 @@
-import * as React from "react";
+import type * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
+
 const badgeVariants = cva(
   "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
   {
@@ -37,53 +38,28 @@ function Badge({ className, variant, ...props }: BadgeProps) {
 
   switch (variant) {
     case "success":
-      explicitStyles = {
-        backgroundColor: "#15803d",
-        color: "white",
-        fontWeight: "bold",
-      }; // Darker green
+      explicitStyles = { backgroundColor: "#22c55e", color: "white" };
       break;
     case "warning":
-      explicitStyles = {
-        backgroundColor: "#ca8a04",
-        color: "white",
-        fontWeight: "bold",
-      }; // Darker yellow
+      explicitStyles = { backgroundColor: "#eab308", color: "white" };
       break;
     case "info":
-      explicitStyles = {
-        backgroundColor: "#0369a1",
-        color: "white",
-        fontWeight: "bold",
-      }; // Darker blue
+      explicitStyles = { backgroundColor: "#3b82f6", color: "white" };
       break;
     case "destructive":
-      explicitStyles = {
-        backgroundColor: "#b91c1c",
-        color: "white",
-        fontWeight: "bold",
-      }; // Darker red
+      explicitStyles = { backgroundColor: "#ef4444", color: "white" };
       break;
     case "secondary":
-      explicitStyles = {
-        backgroundColor: "#e5e7eb",
-        color: "#1f2937",
-        fontWeight: "bold",
-      };
+      explicitStyles = { backgroundColor: "#f3f4f6", color: "#1f2937" };
       break;
     case "default":
-      explicitStyles = {
-        backgroundColor: "#4f46e5",
-        color: "white",
-        fontWeight: "bold",
-      }; // Darker indigo
+      explicitStyles = { backgroundColor: "#6366f1", color: "white" };
       break;
     case "outline":
       explicitStyles = {
         backgroundColor: "transparent",
         color: "currentColor",
         borderColor: "currentColor",
-        fontWeight: "bold",
       };
       break;
   }
